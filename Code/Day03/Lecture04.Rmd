@@ -1,0 +1,226 @@
+---
+title: "Review of allele and genotypic frequencies"
+author: "Gota Morota"
+date: "October 20, 2025"
+output: 
+    prettydoc::html_pretty:
+      theme: architect
+      highlight: vignette
+      toc: true
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="75")
+opts_chunk$set(echo=TRUE,
+	             cache=TRUE,
+               prompt=FALSE,
+               tidy=TRUE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+## Overview 
+In this session, we will learn how to calculate allele and genotypic frequencies in R using simulated SNP data.
+
+## Read a file
+Use the `read.table` function to import the genotype file `Geno.txt` into R as a data frame. Store the genotype data in a variable named `W`.
+```{r, eval=FALSE}
+W <- read.table(file = file.choose(), header=TRUE, stringsAsFactors = FALSE)
+```
+
+We can access a specific element in a data frame by specifying its coordinates within the single square bracket `[]` operator. Let’s first access the element in the first column and first row. When the row coordinate is omitted, the operator returns a data frame containing only the specified column.
+```{r, eval=FALSE}
+W[1, 1] # 1st row and 1st column 
+head(W[, 1]) # one-column data frame
+```
+
+The following code displays the first five rows and columns of the data frame.
+```{r, eval=FALSE}
+W[1:5, 1:5]
+```
+
+We then drop the first column of the data frame, which contains the individual IDs. The `-` sign indicates variable removal, so `-1` means dropping the first column.
+```{r, eval=FALSE}
+W <- W[, -1]
+```
+
+Next, we will convert W from a data frame into a matrix. In R, matrices are generally more memory-efficient and convenient than other data types for performing linear algebra operations.
+```{r, eval=FALSE}
+class(W)
+W <- as.matrix(W)
+class(W)
+```
+
+What is the dimension of `W`?
+```{r, eval=FALSE}
+dim(W)
+```
+
+## Allele frequency 
+Let's compute the allele frequency of the first SNP. The `table()` function returns the frequencies of genotypes.
+```{r, eval=FALSE}
+table(W[, 1])
+```
+
+In the first SNP, we can see that there are 100 **AA** individuals, 475 **Aa** individuals, and 429 **aa** individuals. Let's assign these numbers to variables.
+```{r, eval=FALSE}
+nAA <- table(W[, 1])[3]
+nAa <- table(W[, 1])[2]
+naa <- table(W[, 1])[1]
+```
+
+The allele frequency of *A* is given by:
+$$ 
+f(A) = p = \frac{2 \times (\text{no. of } AA \text{ individuals}) + 1 \times (\text{no. of } Aa \text{ individuals})}{2 \times \text{total no. of individuals}}.
+$$
+
+### Exercise 1
+Use the variables `nAA`, `nAa`, and `naa` defined above to compute the allele frequencies of *A* and *a* in the first SNP.
+```{r, eval=FALSE, echo=FALSE}
+p <- (2 * nAA + 1 * nAa) / (2 * (nAA + nAa + naa))
+p 
+q <- 1 - p
+q
+```
+
+## Genotypic frequency
+Genotypic frequencies are given by 
+$$ 
+f(AA) = P = \frac{\text{No. of } AA \text{ individuals}}{\text{Total no. individuals}} \\
+f(Aa) = H = \frac{\text{No. of } Aa \text{ individuals}}{\text{Total no. individuals}} \\
+f(aa) = Q = \frac{\text{No. of } aa \text{ individuals}}{\text{Total no. individuals}}. \\
+$$
+
+### Exercise 2
+What are the genotypic frequencies of `AA`, `Aa`, and `aa` in the first SNP? 
+```{r, eval=FALSE, echo=FALSE}
+P <- (nAA) / (nAA + nAa + naa)
+P
+H <- (nAa) / (nAA + nAa + naa)
+H
+Q <-  (naa) / (nAA + nAa + naa)
+Q 
+```
+
+## Another approach for obtaining allele frequency is
+$$ 
+f(A) = p = \frac{2 \times (\text{frequency of } AA) + 1 \times (\text{frequency of } Aa)}{2 \times (\text{frequency of } AA + Aa + aa)}.
+$$
+
+### Exercise 3
+Use the variables `P`, `H`, and `Q` defined above and compute the allele frequencies of *A* and *a* in the first SNP. 
+```{r, eval=FALSE, echo=FALSE}
+p.ex3 <- (2 * P + 1 * H) / (2 * (P + H + Q))
+p.ex3 
+q.ex3 <- 1 - p.ex3
+q.ex3
+```
+
+### Exercise 4
+What are the allele and genotypic frequencies of `AA`, `Aa`, and `aa` in the second SNP? 
+```{r, eval=FALSE, echo=FALSE}
+nAA <- table(W[, 2])[3]
+nAa <- table(W[, 2])[2]
+naa <- table(W[, 2])[1]
+
+p <- (2 * nAA + 1 * nAa) / (2 * (nAA + nAa + naa))
+p 
+q <- 1 - p
+q
+
+P <- (nAA) / (nAA + nAa + naa)
+P
+H <- (nAa) / (nAA + nAa + naa)
+H
+Q <-  (naa) / (nAA + nAa + naa)
+Q 
+```
+
+
+## Compute allele frequencies for all SNPs 
+So far we have learned how to compute the allele frequency of a single SNP using the `table` function. Here, we consider how to compute allele frequencies for the entire SNPs. Of course we can apply the `table` function manually one at a time. However, this approach takes too much time to compute allele frequencies for 6,960 SNPs. Recall that allele frequency of *A* is given by 
+$$ 
+f(A) = p = \frac{2 \times (\text{no. of } AA \text{ individuals}) + 1 \times (\text{no. of } Aa \text{ individuals})}{2 \times \text{total no. of individuals}}.
+$$
+We can rewrite this equation into 
+$$ 
+f(A) = p = \frac{(\text{no. of } A \text{ allele in the population})}{2 \times \text{total no. of individuals}}.
+$$
+This suggests that all we need is the number of $A$ allele for each SNP. The `sum` function returns the number of reference allele $A$. 
+```{r, eval=FALSE}
+sum(W[,1]) # sum of A allele in the first SNP
+sum(W[,2]) # sum of A allele in the second SNP
+```
+
+How to repeat this operation for 6,960 SNPs? The `colSums` function returns the sum of each column in a matrix as a vector. 
+```{r, eval=FALSE}
+colSums(W) 
+```
+
+Note that `colSums(W) ` gives the numerator of the above equation. We then divide this number by $2 \times \text{total no. of individuals}$. The function `nrows` returns the number of rows. 
+```{r, eval=FALSE}
+p <- colSums(W) / (2 * nrow(W))
+```
+The variable `p` is a vector and it contains the allele frequencies of reference allele for 6,960 SNPs. 
+
+### Exercise 5
+What is the allele frequency of reference allele in the 300th SNP?
+```{r, eval=FALSE, echo=FALSE}
+p[300]
+```
+
+### Exercise 6
+What is the mean of reference allele frquencies in this population?
+```{r, eval=FALSE, echo=FALSE}
+mean(p)
+```
+
+## Minor allele frequency 
+In most cases, people report a minor allele frequency, which is the frequency of less frequent allele in a given SNP. We can convert allele frequencies into minor allele frquencies by using the `ifelse` function. 
+```{r, eval=FALSE}
+maf <- ifelse( p > 0.5, 1-p, p)
+```
+
+### Exercise 7
+What is the minor allele frquency of the reference allele in the 300th SNP?
+```{r, eval=FALSE, echo=FALSE}
+maf[300]
+```
+
+### Exercise 8
+What is the mean of minor allele frquencies? 
+```{r, eval=FALSE, echo=FALSE}
+mean(maf)
+```
+
+
+## Visualization 
+Now let's visualize the minor allele frequencies for the first 500 SNPs. 
+```{r, eval=FALSE}
+plot(maf[1:500])
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
